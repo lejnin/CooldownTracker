@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WidgetButton>
+	<Name>OpenConfigButton</Name>
+	<Priority>10000</Priority>
+	<Header>
+		<Prototype href="/Mods/SampleCommon/Button/ButtonRegular.Prototype.(WidgetButton).xdb#xpointer(/WidgetButton)" />
+	</Header>
+	<Placement>
+		<X>
+			<Size>35</Size>
+		</X>
+		<Y>
+			<Size>30</Size>
+		</Y>
+	</Placement>
+	<Variants>
+		<Item>
+			<TextFileRef href="ButtonText.txt" />
+			<Reaction>EVENT_ON_CONFIG_BUTTON_CLICK</Reaction>
+			<ReactionRightClick>EVENT_ON_CONFIG_BUTTON_RIGHT_CLICK</ReactionRightClick>
+			<ReactionOnUp>true</ReactionOnUp>
+		</Item>
+	</Variants>
+	<PickChildrenOnly>false</PickChildrenOnly>
+</WidgetButton>

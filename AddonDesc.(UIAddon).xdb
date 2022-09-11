@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<UIAddon>
+    <Name>CooldownTracker</Name>
+    <AutoStart>true</AutoStart>
+    <ScriptFileRefs>
+        <Item href="Scripts/LibDnD.lua"/>
+        <Item href="Scripts/main.lua"/>
+    </ScriptFileRefs>
+    <MainFormId>mainForm</MainFormId>
+    <Forms>
+        <Item>
+            <Id>mainForm</Id>
+            <Form href="Widgets/MainForm.(WidgetForm).xdb#xpointer(/WidgetForm)"/>
+        </Item>
+    </Forms>
+    <localizedNameFileRef href="name.txt"/>
+    <localizedDescFileRef href="desc.txt"/>
+</UIAddon>

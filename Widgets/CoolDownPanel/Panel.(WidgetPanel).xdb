@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<WidgetPanel>
+    <Name>ItemsPanel</Name>
+    <Children>
+        <Item href="Rows/ItemsRow.(WidgetPanel).xdb#xpointer(/WidgetPanel)"/>
+    </Children>
+    <BackLayer href="Rows/Item/Image/Image.(WidgetLayerSimpleTexture).xdb#xpointer(/WidgetLayerSimpleTexture)"/>
+    <FrontLayer href=""/>
+    <Placement>
+        <X>
+            <Align>WIDGET_ALIGN_LOW</Align>
+            <Pos>0</Pos>
+            <Size>200</Size>
+        </X>
+        <Y>
+            <Align>WIDGET_ALIGN_LOW</Align>
+            <Pos>0</Pos>
+            <Size>120</Size>
+        </Y>
+    </Placement>
+    <TransparentInput>false</TransparentInput>
+    <PickChildrenOnly>false</PickChildrenOnly>
+    <clipContent>false</clipContent>
+</WidgetPanel>
