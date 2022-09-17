@@ -1,14 +1,39 @@
+local CoolDownsTable = {
+    ['BARD'] = {
+        ['Резонансный барьер'] = true,
+        ['Марш'] = true,
+        ['Соната'] = true,
+        ['Щит теней'] = true,
+        ['Мелодии войны'] = true,
+    },
+    ['NECROMANCER'] = {
+        ['Щит крови'] = true,
+        ['Тёмная мощь'] = true,
+    },
+}
+
 local wtChat
 local valuedText = common.CreateValuedText()
 local addonName = common.GetAddonName()
 
-local OpenConfigButton = mainForm:GetChildUnchecked("OpenConfigButton", false)
-local ItemsPanel = mainForm:GetChildUnchecked("ItemsPanel", false)
-local ItemsRow = ItemsPanel:GetChildUnchecked("ItemsRow", false)
-local PanelItem = ItemsRow:GetChildUnchecked("PanelItem", false)
+local OpenConfigButton
+local CommonPanel
+local Row
+local RowDesc
+local Item
+local ItemDesc
 
-local enemiesBuffs = {}
-local friendsBuffs = {}
+--local PanelItem = ItemsRow:GetChildUnchecked("PanelItem", false)
+--local wtTimer = mainForm:CreateWidgetByDesc(wtTimerTemplate:GetWidgetDesc())
+
+local spaceBtwRows = 5
+
+local enemiesBuffs = {
+    rowsCount = 0;
+    users = {};
+}
+
+--local friendsBuffs = {}
 
 local dndOn = false
 
@@ -40,6 +65,7 @@ function ToHex(str)
 end
 
 function CreateConfigButton()
+    OpenConfigButton = mainForm:GetChildUnchecked("OpenConfigButton", false)
     OpenConfigButton:Show(true)
 
     DnD.Init(OpenConfigButton, nil, true)
@@ -48,6 +74,96 @@ function CreateConfigButton()
     common.RegisterReactionHandler(OnRightClickButton, 'EVENT_ON_CONFIG_BUTTON_RIGHT_CLICK')
 
     common.RegisterEventHandler(OnAoPanelStart, 'AOPANEL_START')
+end
+
+function GetDefaultStruct()
+    return {
+        --rowWidget = CommonPanel:CreateWidgetByDesc(RowDesc);
+        rowWidget = mainForm:CreateWidgetByDesc(RowDesc);
+        cooldowns = {
+            count = 1; -- панель создается для нового кд, оно будет первым
+            items = {}; -- { spellNAme = {  } }
+        };
+    }
+end
+
+function AddSpellToTable(params)
+    --local spellDescription = spellLib.GetDescription(params.spellId)
+    --PanelItem:GetChildUnchecked('ImageItem', false):SetBackgroundTexture(icon)
+    --local spellInfo = spellLib.GetProperties(params.spellId)
+    --local string = 'Spell: ' .. userMods.FromWString(spellDescription.name) .. ' ('.. spellInfo.rank ..'), CD: ' .. tostring(spellValues.predictedCooldown / 1000 ..'s')
+    --LogToChat(string)
+
+    if enemiesBuffs.rowsCount == 6 then
+        return
+    end
+
+    local spellValues = spellLib.GetCurrentValues(params.spellId)
+
+    -- такого юзера еще нет
+    if enemiesBuffs.users[params.casterId] == nil then
+        enemiesBuffs.users[params.casterId] = GetDefaultStruct()
+        enemiesBuffs.rowsCount = enemiesBuffs.rowsCount + 1
+
+        local placementPlain = enemiesBuffs.users[params.casterId].rowWidget:GetPlacementPlain()
+        placementPlain.posY = (enemiesBuffs.rowsCount - 1) * placementPlain.sizeY
+        if placementPlain.posY ~= 0 then
+            placementPlain.posY = placementPlain.posY + spaceBtwRows
+        end
+
+        enemiesBuffs.users[params.casterId].rowWidget:SetPlacementPlain(placementPlain)
+        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] = {
+            widget = enemiesBuffs.users[params.casterId].rowWidget:GetChildUnchecked('PanelItem', false);
+            cooldown = spellValues.predictedCooldown / 1000;
+        }
+
+        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].widget
+                :GetChildUnchecked('ImageItem', false)
+                :SetBackgroundTexture(spellLib.GetIcon(params.spellId))
+
+        enemiesBuffs.users[params.casterId].rowWidget
+                :AddChild(enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].widget)
+
+        CommonPanel:AddChild(enemiesBuffs.users[params.casterId].rowWidget)
+
+        return -- строка откатов создана, первое умение отрисовали, здесь больше делать нечего
+    end
+
+    -- это умение уже в списке, просто обновим ему кд
+    if enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] ~= nil then
+        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].cooldown = spellValues.predictedCooldown / 1000
+        return
+    end
+
+    -- добавляем новую запись
+    enemiesBuffs.users[params.casterId].cooldowns.count = enemiesBuffs.users[params.casterId].cooldowns.count + 1
+
+    local newItemWidget = mainForm:CreateWidgetByDesc(ItemDesc)
+    newItemWidget:GetChildUnchecked('ImageItem', false):SetBackgroundTexture(spellLib.GetIcon(params.spellId))
+
+    local placementPlain = newItemWidget:GetPlacementPlain()
+    placementPlain.posX = (enemiesBuffs.users[params.casterId].cooldowns.count - 1) * placementPlain.sizeX
+    newItemWidget:SetPlacementPlain(placementPlain)
+
+    enemiesBuffs.users[params.casterId].rowWidget:AddChild(newItemWidget)
+    enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] = {
+        widget = newItemWidget;
+        cooldown = spellValues.predictedCooldown / 1000;
+    }
+    --
+    --local icon = spellLib.GetIcon(params.spellId)
+    --
+    ----local item = mainForm:CreateWidgetByDesc(ItemDesc)
+    --enemiesBuffs.users[params.casterId].cooldowns.count = enemiesBuffs.users[params.casterId].cooldowns.count + 1
+    --enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] = {
+    --    icon = icon;
+    --    cooldown = spellValues.predictedCooldown / 1000;
+    --}
+    --LogToChat('exit')
+end
+
+function RenderNewItem(params)
+
 end
 
 function IsAvatarCanUseAddon()
@@ -67,31 +183,26 @@ function IsAvatarCanUseAddon()
 end
 
 function OnEventBuffAdded(params)
-    if true then
-        return
-    end
-
-    if not (userMods.FromWString(params.buffName) == 'Защита') then
-        return
-    end
-
     local buffInfo = object.GetBuffInfo(params.buffId)
     if buffInfo.producer.casterId == nil then
         return
     end
 
     local class = unit.GetClass(buffInfo.producer.casterId)
-    --LogToChat(class.className)
+    if CoolDownsTable[class.className] == nil then
+        LogToChat('Нет правил для класса ' .. class.className)
+        return
+    end
 
     local spellId = buffInfo.producer.spellId
     if spellId ~= nil then
-        local icon = spellLib.GetIcon(spellId)
-        PanelItem:GetChildUnchecked('ImageItem', false):SetBackgroundTexture(icon)
         local spellDescription = spellLib.GetDescription(spellId)
-        local spellValues = spellLib.GetCurrentValues(spellId)
-        local spellInfo = spellLib.GetProperties(spellId)
-        local string = 'Spell: ' .. userMods.FromWString(spellDescription.name) .. ' ('.. spellInfo.rank ..'), CD: ' .. tostring(spellValues.predictedCooldown / 1000 ..'s')
-        LogToChat(string)
+        local spellNameString = userMods.FromWString(spellDescription.name);
+        if CoolDownsTable[class.className][spellNameString] == nil then
+            return
+        end
+
+        AddSpellToTable({ spellId = spellId; casterId = buffInfo.producer.casterId; spellName = spellNameString })
         return
     end
 
@@ -103,6 +214,13 @@ function OnEventBuffAdded(params)
         end
 
         return
+    end
+end
+
+function OnSecondTimer()
+    local localMarginTop = 0;
+    for k, v in pairs(enemiesBuffs) do
+
     end
 end
 
@@ -145,12 +263,12 @@ function OnClickButton()
     end
 
     if dndOn then
-        ItemsPanel:SetBackgroundColor({ r = 1; g = 1; b = 1; a = 0 })
-        DnD.Remove(ItemsPanel)
+        CommonPanel:SetBackgroundColor({ r = 1; g = 1; b = 1; a = 0 })
+        DnD.Remove(CommonPanel)
         LogToChat('DnD off')
     else
-        DnD.Init(ItemsPanel, nil, true)
-        ItemsPanel:SetBackgroundColor({ r = 1; g = 1; b = 1; a = 0.4 })
+        DnD.Init(CommonPanel, nil, true)
+        CommonPanel:SetBackgroundColor({ r = 1; g = 1; b = 1; a = 0.4 })
         LogToChat('DnD on')
     end
 
@@ -168,23 +286,40 @@ function OnRightClickButton()
 end
 
 function OnEventAvatarCreated()
+    mainForm:Show(false)
+
     if not IsAvatarCanUseAddon() then
-        OpenConfigButton:Show(false)
         LogToChat('Аддон только для ги "Рыцари Крови" [МГ]')
         return
     end
 
-    ItemsPanel:Show(false)
-    ItemsPanel:SetBackgroundColor( { a = 0.0 } )
-    DnD.Init(ItemsPanel, nil, true)
-    DnD.Remove(ItemsPanel)
+    CommonPanel = mainForm:GetChildUnchecked("ItemsPanel", false)
+    CommonPanel:SetBackgroundColor({ a = 0.0 })
 
-    PanelItem:Show(true)
+    Row = CommonPanel:GetChildUnchecked("ItemsRow", false)
+    Item = Row:GetChildUnchecked("PanelItem", false)
+
+    ItemDesc = Item:GetWidgetDesc()
+    RowDesc = Row:GetWidgetDesc()
+
+    Row:DestroyWidget()
+
+    --ItemsRowDesc = mainForm:CreateWidgetByDesc(ItemsRow:GetWidgetDesc())
+    --ItemsPanel:Show(true)
+
+    -- загрузить сохраненное расположение панели
+    DnD.Init(CommonPanel, nil, true)
+    DnD.Remove(CommonPanel)
+
+    --PanelItem:Show(true)
 
     CreateConfigButton()
 
     common.RegisterEventHandler(OnZoneChanged, 'EVENT_AVATAR_CLIENT_ZONE_CHANGED');
     common.RegisterEventHandler(OnEventBuffAdded, 'EVENT_OBJECT_BUFF_ADDED')
+    common.RegisterEventHandler(OnSecondTimer, 'EVENT_SECOND_TIMER')
+
+    mainForm:Show(true)
 end
 
 function Init()

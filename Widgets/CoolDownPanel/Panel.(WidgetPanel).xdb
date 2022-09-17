@@ -10,12 +10,12 @@
         <X>
             <Align>WIDGET_ALIGN_LOW</Align>
             <Pos>0</Pos>
-            <Size>200</Size>
+            <Size>500</Size>
         </X>
         <Y>
             <Align>WIDGET_ALIGN_LOW</Align>
             <Pos>0</Pos>
-            <Size>120</Size>
+            <Size>265</Size>
         </Y>
     </Placement>
     <TransparentInput>false</TransparentInput>
