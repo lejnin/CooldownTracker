@@ -10,6 +10,13 @@ local CoolDownsTable = {
         ['Щит крови'] = true,
         ['Тёмная мощь'] = true,
     },
+    ['STALKER'] = {
+        ['Маятник'] = true,
+        ['Дымное облако'] = true,
+        ['Дымное облако'] = true,
+        ['Отскок'] = true,
+        ['Камуфляж'] = true,
+    }
 }
 
 local wtChat
@@ -88,12 +95,6 @@ function GetDefaultStruct()
 end
 
 function AddSpellToTable(params)
-    --local spellDescription = spellLib.GetDescription(params.spellId)
-    --PanelItem:GetChildUnchecked('ImageItem', false):SetBackgroundTexture(icon)
-    --local spellInfo = spellLib.GetProperties(params.spellId)
-    --local string = 'Spell: ' .. userMods.FromWString(spellDescription.name) .. ' ('.. spellInfo.rank ..'), CD: ' .. tostring(spellValues.predictedCooldown / 1000 ..'s')
-    --LogToChat(string)
-
     if enemiesBuffs.rowsCount == 6 then
         return
     end
@@ -150,16 +151,6 @@ function AddSpellToTable(params)
         widget = newItemWidget;
         cooldown = spellValues.predictedCooldown / 1000;
     }
-    --
-    --local icon = spellLib.GetIcon(params.spellId)
-    --
-    ----local item = mainForm:CreateWidgetByDesc(ItemDesc)
-    --enemiesBuffs.users[params.casterId].cooldowns.count = enemiesBuffs.users[params.casterId].cooldowns.count + 1
-    --enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] = {
-    --    icon = icon;
-    --    cooldown = spellValues.predictedCooldown / 1000;
-    --}
-    --LogToChat('exit')
 end
 
 function RenderNewItem(params)
