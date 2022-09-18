@@ -113,17 +113,21 @@ function AddSpellToTable(params)
         end
 
         enemiesBuffs.users[params.casterId].rowWidget:SetPlacementPlain(placementPlain)
+
+        local wItem = enemiesBuffs.users[params.casterId].rowWidget:GetChildUnchecked('PanelItem', false)
+        wItem:GetChildUnchecked('ImageItem', false):SetBackgroundTexture(spellLib.GetIcon(params.spellId))
+
+        local wCooldownText = wItem:GetChildChecked('Cooldown', false)
+        wCooldownText:SetVal('text', userMods.ToWString('6s'))
+        wCooldownText:Show(true)
+
         enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] = {
-            widget = enemiesBuffs.users[params.casterId].rowWidget:GetChildUnchecked('PanelItem', false);
+            widget = wItem;
             cooldown = spellValues.predictedCooldown / 1000;
+            wCooldownText = wCooldownText;
         }
 
-        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].widget
-                :GetChildUnchecked('ImageItem', false)
-                :SetBackgroundTexture(spellLib.GetIcon(params.spellId))
-
-        enemiesBuffs.users[params.casterId].rowWidget
-                :AddChild(enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].widget)
+        enemiesBuffs.users[params.casterId].rowWidget:AddChild(enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].widget)
 
         CommonPanel:AddChild(enemiesBuffs.users[params.casterId].rowWidget)
 
@@ -141,6 +145,9 @@ function AddSpellToTable(params)
 
     local newItemWidget = mainForm:CreateWidgetByDesc(ItemDesc)
     newItemWidget:GetChildUnchecked('ImageItem', false):SetBackgroundTexture(spellLib.GetIcon(params.spellId))
+
+    local wCooldownText = newItemWidget:GetChildChecked('Cooldown', false)
+    wCooldownText:SetVal('text', userMods.ToWString('6s'))
 
     local placementPlain = newItemWidget:GetPlacementPlain()
     placementPlain.posX = (enemiesBuffs.users[params.casterId].cooldowns.count - 1) * placementPlain.sizeX
@@ -209,10 +216,10 @@ function OnEventBuffAdded(params)
 end
 
 function OnSecondTimer()
-    local localMarginTop = 0;
-    for k, v in pairs(enemiesBuffs) do
-
-    end
+    --local localMarginTop = 0;
+    --for k, v in pairs(enemiesBuffs) do
+    --
+    --end
 end
 
 function OnAoPanelStart()
@@ -255,11 +262,13 @@ function OnClickButton()
 
     if dndOn then
         CommonPanel:SetBackgroundColor({ r = 1; g = 1; b = 1; a = 0 })
+        CommonPanel:SetTransparentInput(true)
         DnD.Remove(CommonPanel)
         LogToChat('DnD off')
     else
         DnD.Init(CommonPanel, nil, true)
         CommonPanel:SetBackgroundColor({ r = 1; g = 1; b = 1; a = 0.4 })
+        CommonPanel:SetTransparentInput(false)
         LogToChat('DnD on')
     end
 

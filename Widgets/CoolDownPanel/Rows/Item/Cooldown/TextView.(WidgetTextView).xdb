@@ -1,27 +1,21 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <WidgetTextView>
     <Name>Cooldown</Name>
-    <Priority>1</Priority>
+    <Priority>2</Priority>
     <Placement>
         <X>
-            <Align>WIDGET_ALIGN_BOTH</Align>
+            <Align>WIDGET_ALIGN_LOW</Align>
+            <Size>40</Size>
             <Pos>0</Pos>
-            <HighPos>0</HighPos>
         </X>
         <Y>
-            <Align>WIDGET_ALIGN_LOW</Align>
-            <Pos>0</Pos>
+            <Align>WIDGET_ALIGN_HIGH</Align>
             <Size>20</Size>
+            <HighPos>0</HighPos>
         </Y>
     </Placement>
+    <TransparentInput>true</TransparentInput>
+    <PickChildrenOnly>false</PickChildrenOnly>
+    <clipContent>false</clipContent>
     <FormatFileRef href="Text.txt"/>
-    <TextValues/>
-    <BackLayer href=""/>
-    <Visible>True</Visible>
-    <Enabled>True</Enabled>
-    <TextStyle>
-        <multiline>False</multiline>
-        <wrapText>False</wrapText>
-    </TextStyle>
-    <TransparentInput>True</TransparentInput>
 </WidgetTextView>

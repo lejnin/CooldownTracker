@@ -5,8 +5,6 @@
         <Item href="Cooldown/TextView.(WidgetTextView).xdb#xpointer(/WidgetTextView)"/>
         <Item href="Image/ImageItem.(WidgetPanel).xdb#xpointer(/WidgetPanel)"/>
     </Children>
-    <BackLayer href=""/>
-    <FrontLayer href=""/>
     <Placement>
         <X>
             <Align>WIDGET_ALIGN_LOW</Align>
