@@ -18,7 +18,7 @@
             <Size>265</Size>
         </Y>
     </Placement>
-    <TransparentInput>false</TransparentInput>
+    <TransparentInput>true</TransparentInput>
     <PickChildrenOnly>false</PickChildrenOnly>
     <clipContent>false</clipContent>
 </WidgetPanel>

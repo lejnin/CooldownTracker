@@ -85,13 +85,50 @@ end
 
 function GetDefaultStruct()
     return {
-        --rowWidget = CommonPanel:CreateWidgetByDesc(RowDesc);
         rowWidget = mainForm:CreateWidgetByDesc(RowDesc);
         cooldowns = {
-            count = 1; -- панель создается для нового кд, оно будет первым
+            count = 0;
             items = {}; -- { spellNAme = {  } }
         };
     }
+end
+
+
+function CreateItem(params, wItem)
+    wItem = wItem or mainForm:CreateWidgetByDesc(ItemDesc)
+    local cooldown = (spellLib.GetCurrentValues(params.spellId).predictedCooldown)
+    local wCooldownText = wItem:GetChildChecked('Cooldown', false)
+
+    wItem:GetChildUnchecked('ImageItem', false):SetBackgroundTexture(spellLib.GetIcon(params.spellId))
+    wCooldownText:SetVal('text', GetCooldownReadableString(cooldown))
+
+    local placementPlain = wItem:GetPlacementPlain()
+    placementPlain.posX = (enemiesBuffs.users[params.casterId].cooldowns.count - 1) * placementPlain.sizeX
+    wItem:SetPlacementPlain(placementPlain)
+
+    return {
+        widget = wItem;
+        cooldown = cooldown;
+        wCooldownText = wCooldownText;
+        spellId = params.spellId;
+        used = common.GetMsFromDateTime(common.GetLocalDateTime()) / 1000;
+    }
+end
+
+function GetCooldownReadableString(timerInMs)
+    if timerInMs >= 86400000 then
+        return tostring(math.floor(timerInMs / 86400000)) .. 'd'
+    end
+
+    if timerInMs >= 3600000 then
+        return tostring(math.floor(timerInMs / 3600000)) .. 'h'
+    end
+
+    if timerInMs >= 60000 then
+        return tostring(math.floor(timerInMs / 60000)) .. 'm'
+    end
+
+    return tostring(math.floor(timerInMs / 1000)) .. 's'
 end
 
 function AddSpellToTable(params)
@@ -99,8 +136,7 @@ function AddSpellToTable(params)
         return
     end
 
-    local spellValues = spellLib.GetCurrentValues(params.spellId)
-
+    local wItem = nil
     -- такого юзера еще нет
     if enemiesBuffs.users[params.casterId] == nil then
         enemiesBuffs.users[params.casterId] = GetDefaultStruct()
@@ -113,51 +149,20 @@ function AddSpellToTable(params)
         end
 
         enemiesBuffs.users[params.casterId].rowWidget:SetPlacementPlain(placementPlain)
-
-        local wItem = enemiesBuffs.users[params.casterId].rowWidget:GetChildUnchecked('PanelItem', false)
-        wItem:GetChildUnchecked('ImageItem', false):SetBackgroundTexture(spellLib.GetIcon(params.spellId))
-
-        local wCooldownText = wItem:GetChildChecked('Cooldown', false)
-        wCooldownText:SetVal('text', userMods.ToWString('6s'))
-        wCooldownText:Show(true)
-
-        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] = {
-            widget = wItem;
-            cooldown = spellValues.predictedCooldown / 1000;
-            wCooldownText = wCooldownText;
-        }
-
-        enemiesBuffs.users[params.casterId].rowWidget:AddChild(enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].widget)
-
         CommonPanel:AddChild(enemiesBuffs.users[params.casterId].rowWidget)
-
-        return -- строка откатов создана, первое умение отрисовали, здесь больше делать нечего
+        wItem = enemiesBuffs.users[params.casterId].rowWidget:GetChildUnchecked('PanelItem', false)
     end
 
-    -- это умение уже в списке, просто обновим ему кд
-    if enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] ~= nil then
-        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].cooldown = spellValues.predictedCooldown / 1000
+    -- это умение еще не в списке, добавим
+    if enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] == nil then
+        enemiesBuffs.users[params.casterId].cooldowns.count = enemiesBuffs.users[params.casterId].cooldowns.count + 1
+        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] = CreateItem(params, wItem)
+        enemiesBuffs.users[params.casterId].rowWidget:AddChild(enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].widget)
         return
     end
 
-    -- добавляем новую запись
-    enemiesBuffs.users[params.casterId].cooldowns.count = enemiesBuffs.users[params.casterId].cooldowns.count + 1
-
-    local newItemWidget = mainForm:CreateWidgetByDesc(ItemDesc)
-    newItemWidget:GetChildUnchecked('ImageItem', false):SetBackgroundTexture(spellLib.GetIcon(params.spellId))
-
-    local wCooldownText = newItemWidget:GetChildChecked('Cooldown', false)
-    wCooldownText:SetVal('text', userMods.ToWString('6s'))
-
-    local placementPlain = newItemWidget:GetPlacementPlain()
-    placementPlain.posX = (enemiesBuffs.users[params.casterId].cooldowns.count - 1) * placementPlain.sizeX
-    newItemWidget:SetPlacementPlain(placementPlain)
-
-    enemiesBuffs.users[params.casterId].rowWidget:AddChild(newItemWidget)
-    enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] = {
-        widget = newItemWidget;
-        cooldown = spellValues.predictedCooldown / 1000;
-    }
+    local spellValues = spellLib.GetCurrentValues(params.spellId)
+    enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].cooldown = spellValues.predictedCooldown / 1000
 end
 
 function RenderNewItem(params)

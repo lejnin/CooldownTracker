@@ -4,6 +4,7 @@
     <AutoStart>true</AutoStart>
     <ScriptFileRefs>
         <Item href="Scripts/LibDnD.lua"/>
+        <Item href="Scripts/config.lua"/>
         <Item href="Scripts/main.lua"/>
     </ScriptFileRefs>
     <MainFormId>mainForm</MainFormId>
