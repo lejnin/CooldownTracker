@@ -1,46 +1,16 @@
-local CoolDownsTable = {
-    ['BARD'] = {
-        ['Резонансный барьер'] = true,
-        ['Марш'] = true,
-        ['Соната'] = true,
-        ['Щит теней'] = true,
-        ['Мелодии войны'] = true,
-    },
-    ['NECROMANCER'] = {
-        ['Щит крови'] = true,
-        ['Тёмная мощь'] = true,
-    },
-    ['STALKER'] = {
-        ['Маятник'] = true,
-        ['Дымное облако'] = true,
-        ['Дымное облако'] = true,
-        ['Отскок'] = true,
-        ['Камуфляж'] = true,
-    }
-}
-
 local wtChat
 local valuedText = common.CreateValuedText()
 local addonName = common.GetAddonName()
 
 local OpenConfigButton
 local CommonPanel
-local Row
 local RowDesc
-local Item
 local ItemDesc
-
---local PanelItem = ItemsRow:GetChildUnchecked("PanelItem", false)
---local wtTimer = mainForm:CreateWidgetByDesc(wtTimerTemplate:GetWidgetDesc())
-
-local spaceBtwRows = 5
 
 local enemiesBuffs = {
     rowsCount = 0;
     users = {};
 }
-
---local friendsBuffs = {}
 
 local dndOn = false
 
@@ -60,7 +30,7 @@ function LogToChat(text)
         valuedText:ClearValues()
         valuedText:SetClassVal("color", "LogColorYellow")
         valuedText:SetVal("text", text)
-        valuedText:SetVal("addonName", userMods.ToWString("CD: "))
+        valuedText:SetVal("addonName", userMods.ToWString("CT: "))
         wtChat:PushFrontValuedText(valuedText)
     end
 end
@@ -93,25 +63,28 @@ function GetDefaultStruct()
     }
 end
 
-
 function CreateItem(params, wItem)
     wItem = wItem or mainForm:CreateWidgetByDesc(ItemDesc)
-    local cooldown = (spellLib.GetCurrentValues(params.spellId).predictedCooldown)
+    local cooldownMs = GetCooldownMsForSpell(params.className, params.spellId, params.spellName)
     local wCooldownText = wItem:GetChildChecked('Cooldown', false)
 
     wItem:GetChildUnchecked('ImageItem', false):SetBackgroundTexture(spellLib.GetIcon(params.spellId))
-    wCooldownText:SetVal('text', GetCooldownReadableString(cooldown))
+    local str = '<body color="0xFFFFFFFF" fontsize="' .. config['COOLDOWN_TEXT_FONTSIZE'] .. '" alignx="right" aligny="bottom" outline="1"><rs class="class"><r name="text"/></rs></body>'
+    wCooldownText:SetFormat(userMods.ToWString(str))
+    wCooldownText:SetVal('text', GetCooldownReadableString(cooldownMs))
 
     local placementPlain = wItem:GetPlacementPlain()
-    placementPlain.posX = (enemiesBuffs.users[params.casterId].cooldowns.count - 1) * placementPlain.sizeX
+    placementPlain.posX = (enemiesBuffs.users[params.casterId].cooldowns.count - 1) * config['ICON_SIZE']
+    placementPlain.sizeX = config['ICON_SIZE']
+    placementPlain.sizeY = config['ICON_SIZE']
     wItem:SetPlacementPlain(placementPlain)
 
     return {
         widget = wItem;
-        cooldown = cooldown;
+        cooldown = cooldownMs;
         wCooldownText = wCooldownText;
         spellId = params.spellId;
-        used = common.GetMsFromDateTime(common.GetLocalDateTime()) / 1000;
+        used = params.usedAt;
     }
 end
 
@@ -131,42 +104,62 @@ function GetCooldownReadableString(timerInMs)
     return tostring(math.floor(timerInMs / 1000)) .. 's'
 end
 
+function GetCooldownMsForSpell(className, spellId, spellName)
+    local cooldown = cooldowns[spellName] or cooldowns[className][spellName]
+    local cooldownType = type(cooldown)
+
+    -- boolean - ищем в spellLib
+    if cooldownType == 'table' then
+        local spellRank = spellLib.GetProperties(spellId).rank
+
+        -- TODO
+        return spellLib.GetCurrentValues(spellId).predictedCooldown
+    end
+
+    if cooldownType == 'number' then
+        return cooldown * 1000
+    end
+
+    return spellLib.GetCurrentValues(spellId).predictedCooldown
+end
+
 function AddSpellToTable(params)
-    if enemiesBuffs.rowsCount == 6 then
+    if enemiesBuffs.rowsCount == config['MAX_ROWS_COUNT'] then
         return
     end
 
-    local wItem = nil
+    local wItem
+
     -- такого юзера еще нет
     if enemiesBuffs.users[params.casterId] == nil then
         enemiesBuffs.users[params.casterId] = GetDefaultStruct()
         enemiesBuffs.rowsCount = enemiesBuffs.rowsCount + 1
 
         local placementPlain = enemiesBuffs.users[params.casterId].rowWidget:GetPlacementPlain()
-        placementPlain.posY = (enemiesBuffs.rowsCount - 1) * placementPlain.sizeY
-        if placementPlain.posY ~= 0 then
-            placementPlain.posY = placementPlain.posY + spaceBtwRows
-        end
-
+        placementPlain.posY = (enemiesBuffs.rowsCount - 1) * (config['ICON_SIZE'] + config['SPACE_BETWEEN_ROWS'])
         enemiesBuffs.users[params.casterId].rowWidget:SetPlacementPlain(placementPlain)
+
         CommonPanel:AddChild(enemiesBuffs.users[params.casterId].rowWidget)
         wItem = enemiesBuffs.users[params.casterId].rowWidget:GetChildUnchecked('PanelItem', false)
     end
 
     -- это умение еще не в списке, добавим
     if enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] == nil then
+        -- панель забита
+        if enemiesBuffs.users[params.casterId].cooldowns.count == config['MAX_ITEMS_COUNT'] then
+            return
+        end
+
         enemiesBuffs.users[params.casterId].cooldowns.count = enemiesBuffs.users[params.casterId].cooldowns.count + 1
         enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] = CreateItem(params, wItem)
         enemiesBuffs.users[params.casterId].rowWidget:AddChild(enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].widget)
         return
     end
 
-    local spellValues = spellLib.GetCurrentValues(params.spellId)
-    enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].cooldown = spellValues.predictedCooldown / 1000
-end
-
-function RenderNewItem(params)
-
+    if (params.usedAt - enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].usedAt) > 8000 then
+        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].cooldown = GetCooldownMsForSpell(params.className, params.spellId, params.spellName)
+        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].usedAt = params.usedAt
+    end
 end
 
 function IsAvatarCanUseAddon()
@@ -187,13 +180,8 @@ end
 
 function OnEventBuffAdded(params)
     local buffInfo = object.GetBuffInfo(params.buffId)
+    LogToChat(tostring(buffInfo.buffId))
     if buffInfo.producer.casterId == nil then
-        return
-    end
-
-    local class = unit.GetClass(buffInfo.producer.casterId)
-    if CoolDownsTable[class.className] == nil then
-        LogToChat('Нет правил для класса ' .. class.className)
         return
     end
 
@@ -201,11 +189,18 @@ function OnEventBuffAdded(params)
     if spellId ~= nil then
         local spellDescription = spellLib.GetDescription(spellId)
         local spellNameString = userMods.FromWString(spellDescription.name);
-        if CoolDownsTable[class.className][spellNameString] == nil then
+        local class = unit.GetClass(buffInfo.producer.casterId)
+        if cooldowns[class.className][spellNameString] == nil and cooldowns[spellNameString] == nil then
             return
         end
 
-        AddSpellToTable({ spellId = spellId; casterId = buffInfo.producer.casterId; spellName = spellNameString })
+        AddSpellToTable({
+            spellId = spellId;
+            casterId = buffInfo.producer.casterId;
+            spellName = spellNameString;
+            className = class.className;
+            usedAt = common.GetMsFromDateTime(common.GetLocalDateTime());
+        })
         return
     end
 
@@ -221,15 +216,19 @@ function OnEventBuffAdded(params)
 end
 
 function OnSecondTimer()
-    --local localMarginTop = 0;
-    --for k, v in pairs(enemiesBuffs) do
-    --
-    --end
+    for casterId, v in pairs(enemiesBuffs.users) do
+        if v.cooldowns.count ~= 0 then
+            for spellName, item in pairs(v.cooldowns.items) do
+
+            end
+        end
+        --v.cooldowns.items;
+    end
 end
 
 function OnAoPanelStart()
-    local SetVal = { val = userMods.ToWString("CD") }
-    local params = { header = SetVal, ptype = "button", size = 60 }
+    local SetVal = { val = userMods.ToWString("CT") }
+    local params = { header = SetVal, ptype = "button", size = 30 }
     userMods.SendEvent("AOPANEL_SEND_ADDON", {
         name = addonName, sysName = addonName, param = params
     })
@@ -294,23 +293,25 @@ function OnEventAvatarCreated()
     mainForm:Show(false)
 
     if not IsAvatarCanUseAddon() then
-        LogToChat('Аддон только для ги "Рыцари Крови" [МГ]')
         return
     end
 
     CommonPanel = mainForm:GetChildUnchecked("ItemsPanel", false)
     CommonPanel:SetBackgroundColor({ a = 0.0 })
 
-    Row = CommonPanel:GetChildUnchecked("ItemsRow", false)
-    Item = Row:GetChildUnchecked("PanelItem", false)
+    local PanelWeight = config['MAX_ITEMS_COUNT'] * config['ICON_SIZE']
+    local CommonPanelPlacement = CommonPanel:GetPlacementPlain();
+    CommonPanelPlacement.sizeY = (config['ICON_SIZE'] + config['SPACE_BETWEEN_ROWS']) * (config['MAX_ROWS_COUNT'] - 1) + config['ICON_SIZE']
+    CommonPanelPlacement.sizeX = PanelWeight
+    CommonPanel:SetPlacementPlain(CommonPanelPlacement)
+
+    local Row = CommonPanel:GetChildUnchecked("ItemsRow", false)
+    local Item = Row:GetChildUnchecked("PanelItem", false)
 
     ItemDesc = Item:GetWidgetDesc()
     RowDesc = Row:GetWidgetDesc()
 
     Row:DestroyWidget()
-
-    --ItemsRowDesc = mainForm:CreateWidgetByDesc(ItemsRow:GetWidgetDesc())
-    --ItemsPanel:Show(true)
 
     -- загрузить сохраненное расположение панели
     DnD.Init(CommonPanel, nil, true)

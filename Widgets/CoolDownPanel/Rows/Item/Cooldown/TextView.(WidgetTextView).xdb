@@ -4,14 +4,10 @@
     <Priority>2</Priority>
     <Placement>
         <X>
-            <Align>WIDGET_ALIGN_LOW</Align>
-            <Size>40</Size>
-            <Pos>0</Pos>
+            <Align>WIDGET_ALIGN_BOTH</Align>
         </X>
         <Y>
-            <Align>WIDGET_ALIGN_HIGH</Align>
-            <Size>20</Size>
-            <HighPos>0</HighPos>
+            <Align>WIDGET_ALIGN_BOTH</Align>
         </Y>
     </Placement>
     <TransparentInput>true</TransparentInput>

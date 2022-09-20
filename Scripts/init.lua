@@ -1,0 +1,2 @@
+Global("cooldowns", {})
+Global("config", {})
