@@ -261,6 +261,10 @@ function OnEventBuffAdded(params)
         return
     end
 
+    if not object.IsEnemy(buffInfo.producer.casterId) then
+        return
+    end
+
     local spellId = buffInfo.producer.spellId
     if spellId ~= nil then
         local spellDescription = spellLib.GetDescription(spellId)
