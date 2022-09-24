@@ -9,7 +9,7 @@ config['MAX_ROWS_COUNT'] = 6
 config['SPACE_BETWEEN_ROWS'] = 2
 
 -- Ширина/высота иконки умения на панели откатов
-config['ICON_SIZE'] = 35
+config['ICON_SIZE'] = 40
 
 -- Размер шрифта таймера
-config['COOLDOWN_TEXT_FONTSIZE'] = 14
+config['COOLDOWN_TEXT_FONTSIZE'] = 16
