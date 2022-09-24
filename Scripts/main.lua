@@ -12,7 +12,15 @@ local enemiesBuffs = {
     users = {};
 }
 
+local possibleAspects = {
+    ["Аспект Нападения"] = true,
+    ["Аспект Поддержки"] = true,
+    ["Аспект Исцеления"] = true,
+    ["Аспект Защиты"] = true,
+    ["Аспект Подавления"] = true,
+}
 local dndOn = false
+local aspects = {}
 
 function LogToChat(text)
     if not wtChat then
@@ -41,6 +49,17 @@ function ToHex(str)
     end))
 end
 
+function ResetEnemiesBuffs()
+    aspects = {}
+    enemiesBuffs.rowsCount = 0
+
+    for _, row in pairs(enemiesBuffs.users) do
+        row.rowWidget:DestroyWidget()
+    end
+
+    enemiesBuffs.users = {}
+end
+
 function CreateConfigButton()
     OpenConfigButton = mainForm:GetChildUnchecked("OpenConfigButton", false)
     OpenConfigButton:Show(true)
@@ -58,14 +77,31 @@ function GetDefaultStruct()
         rowWidget = mainForm:CreateWidgetByDesc(RowDesc);
         cooldowns = {
             count = 0;
-            items = {}; -- { spellNAme = {  } }
+            items = {};
         };
     }
 end
 
+function FindUserAspect(userId)
+    local activeBuffs = object.GetBuffsWithProperties(userId, true, true)
+    for _, objectId in pairs(activeBuffs) do
+        local buffName = userMods.FromWString(object.GetBuffInfo(objectId).name)
+        if possibleAspects[buffName] ~= nil then
+            aspects[userId] = buffName
+            return buffName
+        end
+    end
+
+    return nil
+end
+
+function GetUserAspect(userId)
+    return aspects[userId] or FindUserAspect(userId)
+end
+
 function CreateItem(params, wItem)
     wItem = wItem or mainForm:CreateWidgetByDesc(ItemDesc)
-    local cooldownMs = GetCooldownMsForSpell(params.className, params.spellId, params.spellName)
+    local cooldownMs = CalculateCooldownMsForSpell(params.className, params.spellId, params.spellName, params.casterId)
     local wCooldownText = wItem:GetChildChecked('Cooldown', false)
 
     wItem:GetChildUnchecked('ImageItem', false):SetBackgroundTexture(spellLib.GetIcon(params.spellId))
@@ -81,10 +117,11 @@ function CreateItem(params, wItem)
 
     return {
         widget = wItem;
-        cooldown = cooldownMs;
-        wCooldownText = wCooldownText;
         spellId = params.spellId;
-        used = params.usedAt;
+        cooldown = cooldownMs;
+        cdUntilMs = params.usedAt + cooldownMs;
+        usedAt = params.usedAt;
+        wCooldownText = wCooldownText;
     }
 end
 
@@ -104,16 +141,50 @@ function GetCooldownReadableString(timerInMs)
     return tostring(math.floor(timerInMs / 1000)) .. 's'
 end
 
-function GetCooldownMsForSpell(className, spellId, spellName)
+function CalculateCooldownMsForSpell(className, spellId, spellName, userId)
     local cooldown = cooldowns[spellName] or cooldowns[className][spellName]
     local cooldownType = type(cooldown)
 
-    -- boolean - ищем в spellLib
     if cooldownType == 'table' then
+        local userAspect = GetUserAspect(userId) or ''
         local spellRank = spellLib.GetProperties(spellId).rank
 
-        -- TODO
-        return spellLib.GetCurrentValues(spellId).predictedCooldown
+        local cooldownMs, k, resetCooldowns
+        if cooldown[userAspect] ~= nil then
+            cooldownMs = cooldown[userAspect]['rank_' .. spellRank] or cooldown[userAspect].value
+            k = cooldown[userAspect].calculate
+            resetCooldowns = cooldown[userAspect].resetCooldowns
+        end
+
+        if cooldownMs == nil then
+            cooldownMs = cooldown['rank_' .. spellRank] or cooldown.value
+        end
+
+        if k == nil then
+            k = cooldown.calculate
+        end
+
+        if resetCooldowns == nil then
+            resetCooldowns = cooldown.resetCooldowns
+        end
+
+        if cooldownMs then
+            cooldownMs = cooldownMs * 1000
+        else
+            cooldownMs = spellLib.GetCurrentValues(spellId).predictedCooldown
+        end
+
+        if k then
+            cooldownMs = loadstring('local n = '.. cooldownMs ..'; return '.. k)()
+        end
+
+        if resetCooldowns then
+            for _, resetSpellName in pairs(resetCooldowns) do
+                DeleteCooldown(userId, resetSpellName, true)
+            end
+        end
+
+        return cooldownMs
     end
 
     if cooldownType == 'number' then
@@ -130,7 +201,6 @@ function AddSpellToTable(params)
 
     local wItem
 
-    -- такого юзера еще нет
     if enemiesBuffs.users[params.casterId] == nil then
         enemiesBuffs.users[params.casterId] = GetDefaultStruct()
         enemiesBuffs.rowsCount = enemiesBuffs.rowsCount + 1
@@ -143,9 +213,7 @@ function AddSpellToTable(params)
         wItem = enemiesBuffs.users[params.casterId].rowWidget:GetChildUnchecked('PanelItem', false)
     end
 
-    -- это умение еще не в списке, добавим
     if enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName] == nil then
-        -- панель забита
         if enemiesBuffs.users[params.casterId].cooldowns.count == config['MAX_ITEMS_COUNT'] then
             return
         end
@@ -156,9 +224,18 @@ function AddSpellToTable(params)
         return
     end
 
-    if (params.usedAt - enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].usedAt) > 8000 then
-        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].cooldown = GetCooldownMsForSpell(params.className, params.spellId, params.spellName)
+    local usedDiff = params.usedAt - enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].usedAt
+    if usedDiff > 8000 then
+        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].cdUntilMs = params.usedAt + CalculateCooldownMsForSpell(params.className, params.spellId, params.spellName, params.casterId)
         enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].usedAt = params.usedAt
+        return
+    end
+
+    local cd = CalculateCooldownMsForSpell(params.className, params.spellId, params.spellName, params.casterId)
+    if usedDiff >= cd then
+        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].cdUntilMs = params.usedAt + CalculateCooldownMsForSpell(params.className, params.spellId, params.spellName, params.casterId)
+        enemiesBuffs.users[params.casterId].cooldowns.items[params.spellName].usedAt = params.usedAt
+        return
     end
 end
 
@@ -180,7 +257,6 @@ end
 
 function OnEventBuffAdded(params)
     local buffInfo = object.GetBuffInfo(params.buffId)
-    LogToChat(tostring(buffInfo.buffId))
     if buffInfo.producer.casterId == nil then
         return
     end
@@ -201,6 +277,8 @@ function OnEventBuffAdded(params)
             className = class.className;
             usedAt = common.GetMsFromDateTime(common.GetLocalDateTime());
         })
+
+        UpdatePositionItemsInRow(buffInfo.producer.casterId)
         return
     end
 
@@ -215,21 +293,110 @@ function OnEventBuffAdded(params)
     end
 end
 
-function OnSecondTimer()
-    for casterId, v in pairs(enemiesBuffs.users) do
-        if v.cooldowns.count ~= 0 then
-            for spellName, item in pairs(v.cooldowns.items) do
+function UpdatePositionItemsInRow(casterId)
+    local sortedKeys = getKeysSortedByValue(enemiesBuffs.users[casterId].cooldowns.items, function(a, b)
+        return a.cdUntilMs < b.cdUntilMs
+    end)
 
-            end
-        end
-        --v.cooldowns.items;
+    local itemOrderNumber = 0
+    for _, key in ipairs(sortedKeys) do
+        local item = enemiesBuffs.users[casterId].cooldowns.items[key]
+        local placementPlain = item.widget:GetPlacementPlain()
+        placementPlain.posX = itemOrderNumber * config['ICON_SIZE']
+        item.widget:SetPlacementPlain(placementPlain)
+
+        itemOrderNumber = itemOrderNumber + 1
     end
 end
 
+function UpdatePositionItemsInRows(rows)
+    for casterId, _ in pairs(rows) do
+        UpdatePositionItemsInRow(casterId)
+    end
+end
+
+function getKeysSortedByValue(tbl, sortFunction)
+    local keys = {}
+    for key in pairs(tbl) do
+        table.insert(keys, key)
+    end
+
+    table.sort(keys, function(a, b)
+        return sortFunction(tbl[a], tbl[b])
+    end)
+
+    return keys
+end
+
+function DeleteRows(rows)
+    for casterId, _ in pairs(rows) do
+        enemiesBuffs.users[casterId].rowWidget:DestroyWidget()
+        enemiesBuffs.users[casterId] = nil
+        enemiesBuffs.rowsCount = enemiesBuffs.rowsCount - 1
+    end
+
+    if enemiesBuffs.rowsCount == 0 then
+        return
+    end
+
+    local rowOrderNumber = 0
+    for casterId, _ in pairs(enemiesBuffs.users) do
+        local placementPlain = enemiesBuffs.users[casterId].rowWidget:GetPlacementPlain()
+        placementPlain.posY = rowOrderNumber * (config['ICON_SIZE'] + config['SPACE_BETWEEN_ROWS'])
+        enemiesBuffs.users[casterId].rowWidget:SetPlacementPlain(placementPlain)
+
+        rowOrderNumber = rowOrderNumber + 1
+    end
+end
+
+function DeleteCooldown(casterId, spellName, needUpdateItemsPositions)
+    if enemiesBuffs.users[casterId].cooldowns.items[spellName] == nil then
+        return
+    end
+
+    enemiesBuffs.users[casterId].cooldowns.count = enemiesBuffs.users[casterId].cooldowns.count - 1
+    enemiesBuffs.users[casterId].cooldowns.items[spellName].widget:DestroyWidget()
+    enemiesBuffs.users[casterId].cooldowns.items[spellName] = nil
+
+    if needUpdateItemsPositions == true then
+        UpdatePositionItemsInRow(casterId)
+    end
+end
+
+function UpdateTimers()
+    local needUpdateRows = {}
+    local needDeleteRows = {}
+    local ts = common.GetMsFromDateTime(common.GetLocalDateTime())
+
+    for casterId, _ in pairs(enemiesBuffs.users) do
+        if enemiesBuffs.users[casterId].cooldowns.count ~= 0 then
+            for spellName, item in pairs(enemiesBuffs.users[casterId].cooldowns.items) do
+                if ts < item.cdUntilMs then
+                    item.wCooldownText:SetVal('text', GetCooldownReadableString(item.cdUntilMs - ts))
+                else
+                    DeleteCooldown(casterId, spellName)
+                    if enemiesBuffs.users[casterId].cooldowns.count == 0 then
+                        needDeleteRows[casterId] = true
+                    else
+                        needUpdateRows[casterId] = true
+                    end
+                end
+            end
+        end
+    end
+
+    UpdatePositionItemsInRows(needUpdateRows)
+    DeleteRows(needDeleteRows)
+end
+
+function OnSecondTimer()
+    UpdateTimers()
+end
+
 function OnAoPanelStart()
-    local SetVal = { val = userMods.ToWString("CT") }
-    local params = { header = SetVal, ptype = "button", size = 30 }
-    userMods.SendEvent("AOPANEL_SEND_ADDON", {
+    local SetVal = { val = userMods.ToWString('CT') }
+    local params = { header = SetVal, ptype = 'button', size = 30 }
+    userMods.SendEvent('AOPANEL_SEND_ADDON', {
         name = addonName, sysName = addonName, param = params
     })
 
@@ -240,7 +407,7 @@ function OnAoPanelStart()
 end
 
 function OnZoneChanged()
-
+    ResetEnemiesBuffs()
 end
 
 function OnAoPanelClickButton(params)
@@ -264,6 +431,14 @@ function OnClickButton()
         return
     end
 
+    ResetEnemiesBuffs()
+end
+
+function OnRightClickButton()
+    if DnD:IsDragging() then
+        return
+    end
+
     if dndOn then
         CommonPanel:SetBackgroundColor({ r = 1; g = 1; b = 1; a = 0 })
         CommonPanel:SetTransparentInput(true)
@@ -277,16 +452,6 @@ function OnClickButton()
     end
 
     dndOn = not dndOn
-end
-
-function OnRightClickButton()
-    if DnD:IsDragging() then
-        return
-    end
-
-    local location = cartographer.GetCurrentMapInfo()
-
-    LogToChat(location.name)
 end
 
 function OnEventAvatarCreated()
@@ -313,11 +478,8 @@ function OnEventAvatarCreated()
 
     Row:DestroyWidget()
 
-    -- загрузить сохраненное расположение панели
     DnD.Init(CommonPanel, nil, true)
     DnD.Remove(CommonPanel)
-
-    --PanelItem:Show(true)
 
     CreateConfigButton()
 

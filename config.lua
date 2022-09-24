@@ -1,14 +1,15 @@
--- Макс количество откатов
-config['MAX_ITEMS_COUNT'] = 6
+-- Макс количество откатов (рекомендуемое значение - макс количество отслеживаемых умений из файла cooldowns.lua)
+-- Warning! Если для какого-либо класса на панели отслеживания уже есть MAX_ITEMS_COUNT умений - новые будут проигнорированы.
+config['MAX_ITEMS_COUNT'] = 11
 
 -- Макс количество юнитов
 config['MAX_ROWS_COUNT'] = 6
 
 -- Расстояние между строками откатов
-config['SPACE_BETWEEN_ROWS'] = 4
+config['SPACE_BETWEEN_ROWS'] = 2
 
 -- Ширина/высота иконки умения на панели откатов
-config['ICON_SIZE'] = 40
+config['ICON_SIZE'] = 35
 
 -- Размер шрифта таймера
-config['COOLDOWN_TEXT_FONTSIZE'] = 16
+config['COOLDOWN_TEXT_FONTSIZE'] = 14

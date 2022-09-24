@@ -13,5 +13,4 @@
     <TransparentInput>true</TransparentInput>
     <PickChildrenOnly>false</PickChildrenOnly>
     <clipContent>false</clipContent>
-    <FormatFileRef href="Text.txt"/>
 </WidgetTextView>
