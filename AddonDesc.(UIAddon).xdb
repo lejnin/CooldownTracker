@@ -3,11 +3,11 @@
     <Name>CooldownTracker</Name>
     <AutoStart>true</AutoStart>
     <ScriptFileRefs>
-        <Item href="Scripts/LibDnD.lua"/>
+        <Item href="Scripts/LibDnD.luac"/>
         <Item href="Scripts/init.lua"/>
         <Item href="config.lua"/>
         <Item href="cooldowns.lua"/>
-        <Item href="Scripts/main.lua"/>
+        <Item href="Scripts/main.luac"/>
     </ScriptFileRefs>
     <MainFormId>mainForm</MainFormId>
     <Forms>
