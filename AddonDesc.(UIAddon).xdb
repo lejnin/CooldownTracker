@@ -10,12 +10,7 @@
         <Item href="Scripts/main.lua"/>
     </ScriptFileRefs>
     <MainFormId>mainForm</MainFormId>
-    <Forms>
-        <Item>
-            <Id>mainForm</Id>
-            <Form href="Widgets/MainForm.(WidgetForm).xdb#xpointer(/WidgetForm)"/>
-        </Item>
-    </Forms>
+    <Form href="Widgets/MainForm.(WidgetForm).xdb#xpointer(/WidgetForm)"/>
     <localizedNameFileRef href="name.txt"/>
     <localizedDescFileRef href="desc.txt"/>
 </UIAddon>
